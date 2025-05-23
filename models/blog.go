@@ -12,17 +12,29 @@ type Blog struct {
 	CoverImg   *string   `json:"coverImg,omitempty" gorm:"size:1024;comment:封面"`
 	Content    string    `json:"content" gorm:"not null;comment:内容"`
 	ThumbCount int       `json:"thumbCount" gorm:"default:0;not null;comment:点赞数"`
+	HasThumb   bool      `json:"hasThumb"`
 	CreateTime time.Time `json:"createTime" gorm:"default:CURRENT_TIMESTAMP;not null;comment:创建时间"`
 	UpdateTime time.Time `json:"updateTime" gorm:"default:CURRENT_TIMESTAMP;autoUpdateTime:onUpdate;not null;comment:更新时间"`
 }
 
-// TODO 如果当前是已登陆状态，需要判断当前用户是否点赞该博客并返回给前端
-func (b *Blog) GetUserThumb(db *gorm.DB, userId uint) (bool, error) {
-	//var count int64
-	//err := db.Model(&BlogThumb{}).Where("blog_id = ? and user_id = ?", b.ID, userId).Count(&count).Error
-	//if err != nil {
-	//	return false, err
-	//}
-	//return count > 0, nil
-	return true, nil
+func GetBlogById(db *gorm.DB, blogId int64) (*Blog, error) {
+	var blog Blog
+	err := db.Where("id = ?", blogId).First(&blog).Error
+	return &blog, err
+}
+
+func UpdateThumbNum(db *gorm.DB, blogId string, thumbCount int) error {
+	if err := db.Model(&Blog{}).Where("id = ?", blogId).Update("thumb_count", thumbCount).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetBlogList(db *gorm.DB, userId int64) ([]*Blog, error) {
+	var blogs []*Blog
+	err := db.Where("user_id = ?", userId).Find(&blogs).Error
+	if err != nil {
+		return nil, err
+	}
+	return blogs, nil
 }

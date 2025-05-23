@@ -31,22 +31,3 @@ func (h *Handlers) Login(ctx *gin.Context) {
 		"data":    user,
 	})
 }
-
-func (h *Handlers) CurrentUser(c *gin.Context) *models.User {
-	if cachedObj, exists := c.Get(models.UserField); exists && cachedObj != nil {
-		return cachedObj.(*models.User)
-	}
-
-	session := sessions.Default(c)
-	userId := session.Get(models.UserField)
-	if userId == nil {
-		return nil
-	}
-
-	user, err := models.GetUserById(h.db, userId.(uint))
-	if err != nil {
-		return nil
-	}
-	c.Set(models.UserField, user)
-	return user
-}
