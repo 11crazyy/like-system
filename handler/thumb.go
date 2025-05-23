@@ -2,14 +2,14 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/restsend/carrot"
-	"gorm.io/gorm"
-	"index/cache"
+	"github.com/sirupsen/logrus"
 	"index/models"
+	"index/util"
 	"net/http"
 	"strconv"
-	"sync"
 )
 
 func (h *Handlers) handleDoThumb(c *gin.Context) {
@@ -23,53 +23,65 @@ func (h *Handlers) handleDoThumb(c *gin.Context) {
 		carrot.AbortWithJSONError(c, http.StatusUnauthorized, errors.New("用户未登录"))
 		return
 	}
-	mutex := sync.Mutex{}
-	mutex.Lock()
-	defer mutex.Unlock()
+	//mutex := sync.Mutex{}
+	//mutex.Lock()
+	//defer mutex.Unlock()
+	//
+	////在事务中执行点赞操作
+	//err := h.db.Transaction(func(tx *gorm.DB) error {
+	//	bId, _ := strconv.ParseInt(blogId, 10, 64)
+	//	exist, err := cache.HasThumb(bId, int64(user.ID), h.redis)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if exist {
+	//		return errors.New("用户已经点赞")
+	//	}
+	//
+	//	blogID, _ := strconv.ParseInt(blogId, 10, 64)
+	//	blog, err := models.GetBlogById(tx, blogID)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	//更新博客点赞数
+	//	if err := models.UpdateThumbNum(tx, blogId, blog.ThumbCount+1); err != nil {
+	//		return err
+	//	}
+	//
+	//	thumb := models.Thumb{
+	//		UserID: int64(user.ID),
+	//		BlogID: blogID,
+	//	}
+	//	if err := models.CreateThumb(tx, &thumb); err != nil {
+	//		return err
+	//	}
+	//	//将点赞记录存入redis
+	//	err = cache.SavaThumb(blogID, int64(user.ID), h.redis)
+	//	return err
+	//})
+	//if err != nil {
+	//	carrot.AbortWithJSONError(c, http.StatusInternalServerError, err)
+	//	return
+	//}
 
-	//在事务中执行点赞操作
-	err := h.db.Transaction(func(tx *gorm.DB) error {
-		//err, count := models.GetBlogByUserIdAndBlogId(tx, blogId, strconv.Itoa(int(user.ID)))
-		//if err != nil {
-		//	return err
-		//}
-		//if count != 0 {
-		//	return errors.New("用户已经点赞")
-		//}
-		bId, _ := strconv.ParseInt(blogId, 10, 64)
-		exist, err := cache.HasThumb(bId, int64(user.ID), h.redis)
-		if err != nil {
-			return err
-		}
-		if exist {
-			return errors.New("用户已经点赞")
-		}
-
-		blogID, _ := strconv.ParseInt(blogId, 10, 64)
-		blog, err := models.GetBlogById(tx, blogID)
-		if err != nil {
-			return err
-		}
-		//更新博客点赞数
-		if err := models.UpdateThumbNum(tx, blogId, blog.ThumbCount+1); err != nil {
-			return err
-		}
-
-		thumb := models.Thumb{
-			UserID: int64(user.ID),
-			BlogID: blogID,
-		}
-		if err := models.CreateThumb(tx, &thumb); err != nil {
-			return err
-		}
-		//将点赞记录存入redis
-		err = cache.SavaThumb(blogID, int64(user.ID), h.redis)
-		return err
-	})
+	//使用Lua脚本执行点赞操作 不需要锁和事务
+	thumbScript := models.GetThumbScript()
+	timeSlice := util.GetTimeSLice()
+	thumbTempKey := models.TEMP_THUMB_KEY_PREFIX + timeSlice
+	thumbUserKey := models.USER_THUMB_KEY_PREFIX + strconv.Itoa(int(user.ID))
+	result, err := thumbScript.Run(c, h.redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
 	if err != nil {
-		carrot.AbortWithJSONError(c, http.StatusInternalServerError, err)
+		logrus.Error(err)
 		return
 	}
+	switch result {
+	case 1:
+		fmt.Println("点赞成功")
+	case -1:
+		carrot.AbortWithJSONError(c, http.StatusBadRequest, errors.New("用户没有点赞"))
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "点赞成功",
 	})
@@ -87,48 +99,61 @@ func (h *Handlers) handleCancelThumb(c *gin.Context) {
 		carrot.AbortWithJSONError(c, http.StatusUnauthorized, errors.New("用户未登录"))
 		return
 	}
-	mutex := sync.Mutex{}
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	err := h.db.Transaction(func(tx *gorm.DB) error {
-		//err, count := models.GetBlogByUserIdAndBlogId(tx, blogId, strconv.Itoa(int(user.ID)))
-		//if err != nil {
-		//	return err
-		//}
-		//if count == 0 {
-		//	return errors.New("用户没有点赞")
-		//}
-		bId, _ := strconv.ParseInt(blogId, 10, 64)
-		exist, err := cache.HasThumb(bId, int64(user.ID), h.redis)
-		if err != nil {
-			return err
-		}
-		if !exist {
-			return errors.New("用户没有点赞")
-		}
-
-		blogID, _ := strconv.ParseInt(blogId, 10, 64)
-		blog, err := models.GetBlogById(tx, blogID)
-		if err != nil {
-			return err
-		}
-		//更新博客点赞数
-		if err := models.UpdateThumbNum(tx, blogId, blog.ThumbCount-1); err != nil {
-			return err
-		}
-		if err := models.DeleteThumb(tx, blogId, strconv.Itoa(int(user.ID))); err != nil {
-			return err
-		}
-		if err := cache.DeleteThumb(blogID, int64(user.ID), h.redis); err != nil {
-			return err
-		}
-		return nil
-	})
+	//mutex := sync.Mutex{}
+	//mutex.Lock()
+	//defer mutex.Unlock()
+	//
+	//err := h.db.Transaction(func(tx *gorm.DB) error {
+	//	//err, count := models.GetBlogByUserIdAndBlogId(tx, blogId, strconv.Itoa(int(user.ID)))
+	//	//if err != nil {
+	//	//	return err
+	//	//}
+	//	//if count == 0 {
+	//	//	return errors.New("用户没有点赞")
+	//	//}
+	//	bId, _ := strconv.ParseInt(blogId, 10, 64)
+	//	exist, err := cache.HasThumb(bId, int64(user.ID), h.redis)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if !exist {
+	//		return errors.New("用户没有点赞")
+	//	}
+	//
+	//	blogID, _ := strconv.ParseInt(blogId, 10, 64)
+	//	blog, err := models.GetBlogById(tx, blogID)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	//更新博客点赞数
+	//	if err := models.UpdateThumbNum(tx, blogId, blog.ThumbCount-1); err != nil {
+	//		return err
+	//	}
+	//	if err := models.DeleteThumb(tx, blogId, strconv.Itoa(int(user.ID))); err != nil {
+	//		return err
+	//	}
+	//	if err := cache.DeleteThumb(blogID, int64(user.ID), h.redis); err != nil {
+	//		return err
+	//	}
+	//	return nil
+	//})
+	cancelThumbScript := models.GetUnthumbScript()
+	timeSLice := util.GetTimeSLice()
+	thumbTempKey := models.TEMP_THUMB_KEY_PREFIX + timeSLice
+	thumbUserKey := models.USER_THUMB_KEY_PREFIX + strconv.Itoa(int(user.ID))
+	result, err := cancelThumbScript.Run(c, h.redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
 	if err != nil {
-		carrot.AbortWithJSONError(c, http.StatusInternalServerError, err)
+		logrus.Error(err)
 		return
 	}
+	switch result {
+	case 1:
+		fmt.Println("取消点赞成功")
+	case -1:
+		carrot.AbortWithJSONError(c, http.StatusBadRequest, errors.New("用户没有点赞"))
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "取消点赞成功",
 	})

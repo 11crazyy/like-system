@@ -113,5 +113,7 @@ func main() {
 
 	fmt.Println("🎉 Voicefox acd is running on", addr)
 
+	//TODO 创建并启动同步任务 handler.Start()
+
 	r.Run(addr)
 }

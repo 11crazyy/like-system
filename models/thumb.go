@@ -21,8 +21,11 @@ func GetBlogByUserIdAndBlogId(db *gorm.DB, blogId string, userId string) (error,
 	return nil, count
 }
 
-func CreateThumb(db *gorm.DB, thumb *Thumb) error {
-	return db.Create(thumb).Error
+func BatchCreateThumb(db *gorm.DB, thumb []*Thumb) error {
+	if err := db.Create(&thumb).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func DeleteThumb(db *gorm.DB, blogId, userId string) error {
@@ -32,7 +35,11 @@ func DeleteThumb(db *gorm.DB, blogId, userId string) error {
 	return nil
 }
 
-// 是否已点赞
-func HasThumb(db *gorm.DB, blogId, userId int64) {
-
+func BatchUpdateThumbCount(db *gorm.DB, countMap map[int64]int64) error {
+	for blogId, count := range countMap {
+		if err := db.Model(&Blog{}).Where("id = ?", blogId).Update("thumb_count", gorm.Expr("thumb_count + ?", count)).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

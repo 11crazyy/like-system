@@ -6,5 +6,6 @@ const (
 	ENV_DB_DRIVER         = "DB_DRIVER"
 	ENV_DSN               = "DSN"
 	USER_THUMB_KEY_PREFIX = "thumb:"
-	USER_THUMB_BLOOM_KEY  = "thumb_bloom:"
+	USER_THUMB_BLOOM_KEY  = "thumb:bloom:"
+	TEMP_THUMB_KEY_PREFIX = "thumb:temp:"
 )
