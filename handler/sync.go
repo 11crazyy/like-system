@@ -34,7 +34,7 @@ func (h *Handlers) syncThumbToDbByData(timeSlice string) {
 	tempThumbKey := models.TEMP_THUMB_KEY_PREFIX + timeSlice
 
 	//从redis中获取tempThumbKey对应的所有临时点赞数据
-	allTempThumb, err := h.Redis.HGetAll(ctx, tempThumbKey).Result()
+	allTempThumb, err := h.redis.HGetAll(ctx, tempThumbKey).Result()
 	if err != nil {
 		logrus.Error(err)
 		return
@@ -105,7 +105,7 @@ func (h *Handlers) syncThumbToDbByData(timeSlice string) {
 
 	//异步删除Redis中处理过的数据
 	go func() {
-		if _, err := h.Redis.Del(ctx, tempThumbKey).Result(); err != nil {
+		if _, err := h.redis.Del(ctx, tempThumbKey).Result(); err != nil {
 			logrus.WithField("err", "删除Redis键失败").Error(err)
 		}
 	}()
@@ -138,7 +138,7 @@ func (h *Handlers) StartCompensatoryJob() {
 func (h *Handlers) SyncThumbToDbCompensatory() {
 	logrus.Info("开始执行补偿机制")
 	pattern := models.TEMP_THUMB_KEY_PREFIX + "*"
-	thumbKeys, err := h.Redis.Keys(context.Background(), pattern).Result()
+	thumbKeys, err := h.redis.Keys(context.Background(), pattern).Result()
 	if err != nil {
 		logrus.WithField("redisKey", thumbKeys).Error(err)
 		return
