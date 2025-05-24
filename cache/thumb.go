@@ -8,6 +8,7 @@ import (
 	"strconv"
 )
 
+// TODO 改成从cacheManager中获取是否点赞
 func HasThumb(blogId, userId int64, redisClient *redis.Client) (bool, error) {
 	//先查询布隆过滤器
 	if !MayHaveThumb(userId, blogId, redisClient) {

@@ -69,7 +69,7 @@ func (h *Handlers) handleDoThumb(c *gin.Context) {
 	timeSlice := util.GetTimeSLice()
 	thumbTempKey := models.TEMP_THUMB_KEY_PREFIX + timeSlice
 	thumbUserKey := models.USER_THUMB_KEY_PREFIX + strconv.Itoa(int(user.ID))
-	result, err := thumbScript.Run(c, h.redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
+	result, err := thumbScript.Run(c, h.Redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
 	if err != nil {
 		logrus.Error(err)
 		return
@@ -141,7 +141,7 @@ func (h *Handlers) handleCancelThumb(c *gin.Context) {
 	timeSLice := util.GetTimeSLice()
 	thumbTempKey := models.TEMP_THUMB_KEY_PREFIX + timeSLice
 	thumbUserKey := models.USER_THUMB_KEY_PREFIX + strconv.Itoa(int(user.ID))
-	result, err := cancelThumbScript.Run(c, h.redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
+	result, err := cancelThumbScript.Run(c, h.Redis, []string{thumbTempKey, thumbUserKey}, blogId, strconv.Itoa(int(user.ID))).Int()
 	if err != nil {
 		logrus.Error(err)
 		return

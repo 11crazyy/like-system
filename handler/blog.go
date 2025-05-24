@@ -21,7 +21,7 @@ func (h *Handlers) handleGetBlogById(ctx *gin.Context) {
 	blogID, _ := strconv.ParseInt(blogId, 10, 64)
 	blog, _ := models.GetBlogById(h.db, blogID)
 
-	thumb, err := cache.HasThumb(blogID, int64(loginUser.ID), h.redis)
+	thumb, err := cache.HasThumb(blogID, int64(loginUser.ID), h.Redis)
 	if err != nil {
 		carrot.AbortWithJSONError(ctx, http.StatusInternalServerError, err)
 		return
@@ -39,7 +39,7 @@ func (h *Handlers) GetBlogList(ctx *gin.Context) {
 		return
 	}
 	for _, blog := range blogs {
-		thumb, err := cache.HasThumb(blog.ID, int64(loginUser.ID), h.redis)
+		thumb, err := cache.HasThumb(blog.ID, int64(loginUser.ID), h.Redis)
 		if err != nil {
 			carrot.AbortWithJSONError(ctx, http.StatusInternalServerError, err)
 			return
