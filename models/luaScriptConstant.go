@@ -68,3 +68,35 @@ func GetThumbScript() *redis.Script {
 func GetUnthumbScript() *redis.Script {
 	return redis.NewScript(UnthumbScript)
 }
+
+const (
+	//点赞lua脚本
+	NewThumbScript = `
+local userThumbKey = KEYS[1]
+local blogId = ARGV[1]
+
+-- 判断是否已经点赞
+if redis.call("HEXISTS", userThumbKey, blogId) == 1 then
+    return -1
+end
+
+-- 添加点赞记录
+redis.call("HSET", userThumbKey, blogId, 1)
+return 1
+`
+
+	//取消点赞lua脚本
+	NewUnthumbScript = `
+local userThumbKey = KEYS[1]
+local blogId = ARGV[1]
+
+-- 判断是否已点赞
+if redis.call("HEXISTS", userThumbKey, blogId) == 0 then
+    return -1
+end
+
+-- 删除点赞记录
+redis.call("HDEL", userThumbKey, blogId)
+return 1
+`
+)
