@@ -100,3 +100,11 @@ redis.call("HDEL", userThumbKey, blogId)
 return 1
 `
 )
+
+func GetNewThumbScript() *redis.Script {
+	return redis.NewScript(NewThumbScript)
+}
+
+func GetNewUnthumbScript() *redis.Script {
+	return redis.NewScript(NewUnthumbScript)
+}
